@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E2EE Chat</title>
+    <script src="https://unpkg.com/openpgp@6.2.0/dist/openpgp.min.js"></script>
+    <script src="https://unpkg.com/marked@11.0.0/marked.min.js"></script>
+    <script src="https://unpkg.com/dompurify@3.0.8/dist/purify.min.js"></script>
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="overlay" class="overlay"></div>
+
+    <div class="container">
+        <div class="panel manage-area">
+            <div class="header">
+                <h2>在线用户</h2>
+                <div id="connectionStatus" class="connection-status status-disconnected">
+                    未连接
+                </div>
+            </div>
+            <div class="user-list" id="userList">
+                <div style="text-align: center; color: #999; padding: 20px;">
+                    等待连接...
+                </div>
+            </div>
+
+            <!-- Tab切换区域 -->
+            <div class="tab-container">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="keyManagement">密钥管理</button>
+                    <button class="tab-btn" data-tab="roomSettings">房间设置</button>
+                </div>
+
+                <!-- 密钥管理Tab -->
+                <div class="tab-content active" id="keyManagement">
+                    <div class="key-management">
+                        <div class="key-info">
+                            <div>你的密钥ID:</div>
+                            <div id="keyId" class="key-id">未注册</div>
+                        </div>
+                        <div class="key-buttons">
+                            <button id="importPublicKey">导入公钥</button>
+                            <button id="importPrivateKey">导入私钥</button>
+                            <button id="copyPublicKey">复制公钥</button>
+                            <button id="generateKeys">生成密钥</button>
+                        </div>
+                        <div class="debug-info" id="debugInfo"></div>
+                    </div>
+                </div>
+
+                <!-- 房间设置Tab -->
+                <div class="tab-content" id="roomSettings">
+                    <div class="admin-management">
+                <!-- 房间类型转换 -->
+                <div class="admin-section" id="roomTypeSection" style="display:none;">
+                    <h3>房间设置</h3>
+                    <button id="convertRoomTypeBtn" class="admin-btn">转换房间类型</button>
+                </div>
+
+                <!-- 邀请链接生成 -->
+                <div class="admin-section" id="inviteSection" style="display:none;">
+                    <h3>邀请链接</h3>
+                    <div class="invite-form">
+                        <select id="inviteRole" class="admin-select">
+                            <option value="admin">Admin</option>
+                            <option value="user" selected>用户</option>
+                            <option value="guest">Guest</option>
+                        </select>
+                        <input type="number" id="inviteExpires" class="admin-input" placeholder="过期时间(小时)" min="1">
+                        <input type="number" id="inviteMaxUsage" class="admin-input" placeholder="最大使用次数" min="1">
+                        <button onclick="generateInviteLink()" class="admin-btn">生成邀请链接</button>
+                    </div>
+                    <div id="inviteList" class="invite-list"></div>
+                </div>
+
+                <!-- 封禁列表 -->
+                <div class="admin-section" id="banListSection" style="display:none;">
+                    <h3>封禁列表</h3>
+                    <div id="banList" class="ban-list"></div>
+                </div>
+
+                <!-- 隐私配置 -->
+                <div class="admin-section" id="privacySection" style="display:none;">
+                    <h3>隐私设置</h3>
+                    <div class="privacy-form">
+                        <label class="privacy-label">
+                            <input type="checkbox" id="guestCanViewMessages" checked>
+                            <span>Guest 可查看消息</span>
+                        </label>
+                        <label class="privacy-label">
+                            <input type="checkbox" id="guestCanViewUserList" checked>
+                            <span>Guest 可查看用户列表</span>
+                        </label>
+                        <label class="privacy-label">
+                            <input type="checkbox" id="requireInviteToJoin">
+                            <span>需要邀请链接才能加入</span>
+                        </label>
+                        <button onclick="updatePrivacyConfig()" class="admin-btn">保存设置</button>
+                    </div>
+                </div>
+
+                <!-- 消息计数配置 -->
+                <div class="admin-section" id="messageCountSection" style="display:none;">
+                    <h3>消息计数设置</h3>
+                    <div class="privacy-form">
+                        <label class="privacy-label">
+                            <input type="checkbox" id="enableMessageCount">
+                            <span>启用消息计数功能</span>
+                        </label>
+                        <label class="privacy-label">
+                            <input type="checkbox" id="messageCountVisibleToUser">
+                            <span>User 可见消息计数</span>
+                        </label>
+                        <label class="privacy-label" id="messageCountGuestLabel">
+                            <input type="checkbox" id="messageCountVisibleToGuest">
+                            <span>Guest 可见消息计数</span>
+                        </label>
+                        <button onclick="updateMessageCountConfig()" class="admin-btn">保存设置</button>
+                    </div>
+                </div>
+                    </div>
+                </div>
+                <!-- 房间设置Tab结束 -->
+            </div>
+            <!-- Tab容器结束 -->
+        </div>
+
+        <div class="panel chat-area">
+            <div class="header">
+                <h2 id="roomName">E2EE Chat Room</h2>
+                <div class="room-url" id="roomUrl"></div>
+            </div>
+            <div class="messages" id="messages"></div>
+                <div class="input-area">
+                    <textarea id="messageInput" placeholder="输入消息..." rows="1" disabled></textarea>
+                    <button id="sendButton" disabled>发送</button>
+                </div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+
+    <!-- JavaScript 模块 -->
+    <script src="js/markdown-config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/heartbeat.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/messages.js"></script>
+    <script src="js/users.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/tabs.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/init.js"></script>
+</body>
+</html>
